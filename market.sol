@@ -241,7 +241,7 @@ contract LambdaMatchOrder {
     function saveOrderInformation(Order memory order) internal {
         uint price = order.price;
         handlerPrice(price);
-        // handlerPledgeTime(price, order);
+        handlerPledgeTime(price, order);
     }
 
     function handlerPrice(uint _price) internal {
