@@ -1,4 +1,4 @@
-## lambda market
+## lambda marketplace
 
 ### description
 
