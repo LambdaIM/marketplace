@@ -101,15 +101,20 @@ contract LambdaMatchOrder {
         return mappingOrderIdToMatchOrder[_orderId];
     }
 
-    function quickSort(uint[] storage arr, uint left, uint right) internal {
-        uint i = left;
-        uint j = right;
-        uint pivot = arr[left + (right - left) / 2];
+    function getPriceList() external view returns (uint[]) {
+        return priceList;
+    }
+
+    function quickSort(uint[] storage arr, int left, int right) internal{
+        int i = left;
+        int j = right;
+        if(i==j) return;
+        uint pivot = arr[uint(left + (right - left) / 2)];
         while (i <= j) {
-            while (arr[i] < pivot) i++;
-            while (pivot < arr[j]) j--;
+            while (arr[uint(i)] < pivot) i++;
+            while (pivot < arr[uint(j)]) j--;
             if (i <= j) {
-                (arr[i], arr[j]) = (arr[j], arr[i]);
+                (arr[uint(i)], arr[uint(j)]) = (arr[uint(j)], arr[uint(i)]);
                 i++;
                 j--;
             }
@@ -119,6 +124,7 @@ contract LambdaMatchOrder {
         if (i < right)
             quickSort(arr, i, right);
     }
+
 
     // pledge miner
     function pledge(uint _size, uint _pledgeTime, uint _price) external payable returns (bool) {
@@ -235,7 +241,7 @@ contract LambdaMatchOrder {
     function saveOrderInformation(Order memory order) internal {
         uint price = order.price;
         handlerPrice(price);
-        handlerPledgeTime(price, order);
+        // handlerPledgeTime(price, order);
     }
 
     function handlerPrice(uint _price) internal {
@@ -249,7 +255,7 @@ contract LambdaMatchOrder {
                 }
                 if (i == (length - 1)) {
                     priceList.push(_price);
-                    if (priceList.length > 1) quickSort(priceList, 0, priceList.length - 1);
+                    if (priceList.length > 1) quickSort(priceList, 0, int(priceList.length - 1));
                 }
             }
         }
