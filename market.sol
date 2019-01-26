@@ -319,7 +319,7 @@ contract LambdaMatchOrder {
             createTime: now,
             ip: sellOrder.ip,
             status: 0,
-            endTime: now,
+            endTime: now + buyOrder.duration,
             settleTime: now
             });
 
@@ -493,7 +493,7 @@ contract LambdaMatchOrder {
         uint div = settleTime - order.settleTime;
         // uint price = order.price * order.size * (div / 1 days);
         uint price = order.price * order.size * (div / 60);
-        require(price != 0, "time is not enough");
+        // require(price != 0, "time is not enough");
         // uint newSettleTime = settleTime - (div % 1 days);
         uint newSettleTime = settleTime - (div % 60);
 
