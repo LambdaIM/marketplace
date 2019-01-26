@@ -286,7 +286,7 @@ contract LambdaMatchOrder {
         }
     }
 
-    function executeOrder(Order memory _order) public {
+    function executeOrder(Order memory _order) public payable {
         address owner = _order.owner;
         uint price = _order.price;
         uint size = _order.size;
@@ -339,9 +339,9 @@ contract LambdaMatchOrder {
 
         order(orderIdBytes, buyBytes, sellBytes, sellOrder.ip);
 
-        uint divValue = msg.value - (buyOrder.size * sellOrder.price * buyOrder.duration);
-        require(divValue >= 0, "money is not enough");
-        msg.sender.transfer(divValue);
+        // uint divValue = msg.value - (buyOrder.size * sellOrder.price * (buyOrder.duration / 1 days));
+        // require(divValue >= 0, "money is not enough");
+        // msg.sender.transfer(divValue);
 
         handerBuyOrder(buyOrder, BuyOrderList);
         handerSellOrder(buyOrder, sellOrder, SellOrderList);
