@@ -151,7 +151,7 @@ contract LambdaMatchOrder {
         }
     }
 
-    function pledgeRevert() external {
+    function pledgeRevert(uint _now) external {
         address minerAddress = msg.sender;
         uint pos = PledgeIndex[minerAddress];
         PledgeMiner storage miner = PledgeMinerList[pos - 1];
@@ -159,7 +159,7 @@ contract LambdaMatchOrder {
         require(miner.status != 1, "status is unaviable, can not revert pledge");
 
         miner.status = 1;
-        miner.pledgeTime = now;
+        miner.pledgeTime = _now;
 
         deleteMinerSellOrder(minerAddress);
     }
@@ -180,7 +180,7 @@ contract LambdaMatchOrder {
         }
     }
 
-    function withdrawPledge() external {
+    function withdrawPledge(uint _now) external {
         address minerAddress = msg.sender;
         uint pos = PledgeIndex[minerAddress];
         PledgeMiner memory miner = PledgeMinerList[pos - 1];
@@ -188,14 +188,14 @@ contract LambdaMatchOrder {
         require(miner.status == 1, "pledge is aviable");
         // TODO
         // require((now - miner.pledgeTime) >= (90 * 1 days), "time is not satisfy");
-        require((now - miner.pledgeTime) >= (90 * 1), "time is not satisfy");
+        require((_now - miner.pledgeTime) >= (90 * 1), "time is not satisfy");
 
         delete PledgeIndex[minerAddress];
         delete PledgeMinerList[pos - 1];
         minerAddress.transfer(miner.money);
     }
 
-    function createOrder(uint _size, uint _price, uint _duration, uint _mold, uint256 _ip) public payable {
+    function createOrder(uint _size, uint _price, uint _duration, uint _mold, uint256 _ip, uint _now) public payable {
         // if mold == 0  sell
         address _address = msg.sender;
         uint index = PledgeIndex[_address];
@@ -209,7 +209,7 @@ contract LambdaMatchOrder {
         // create OrderId
         bytes32 orderId = keccak256(abi.encodePacked(
                 _address,
-                now,
+                _now,
                 _size,
                 _price,
                 _mold,
@@ -223,7 +223,7 @@ contract LambdaMatchOrder {
             price: _price,
             size: _size,
             mold: _mold,
-            createTime: now,
+            createTime: _now,
             duration: _duration,
             ip: _ip
             });
@@ -235,7 +235,7 @@ contract LambdaMatchOrder {
             StorageAddressOrder[_address].push(order);
             PledgeMinerList[index - 1].useSize += _size;
         } else {
-            executeOrder(order);
+            executeOrder(order, _now);
         }
     }
 
@@ -286,7 +286,7 @@ contract LambdaMatchOrder {
         }
     }
 
-    function executeOrder(Order memory _order) public payable {
+    function executeOrder(Order memory _order, uint _now) public payable {
         address owner = _order.owner;
         uint price = _order.price;
         uint size = _order.size;
@@ -294,10 +294,10 @@ contract LambdaMatchOrder {
         (Order memory order, uint findPrice) = findOrderByPriceOrSize(size, price, duration);
         require(order.owner != _order.owner, "not allow buy and sell one address");
         require (order.orderId != 0, "can not find match sell Order");
-        systemOrder(_order, order, findPrice);
+        systemOrder(_order, order, findPrice, _now);
     }
 
-    function systemOrder(Order memory buyOrder, Order memory sellOrder, uint price) internal {
+    function systemOrder(Order memory buyOrder, Order memory sellOrder, uint price, uint _now) internal {
         address buyAddress = buyOrder.owner;
         address sellAddress = sellOrder.owner;
         bytes32 orderId = keccak256(abi.encodePacked(
@@ -305,7 +305,7 @@ contract LambdaMatchOrder {
                 sellAddress,
                 buyOrder.price,
                 buyOrder.size,
-                now
+                _now
             ));
 
         MatchOrder memory matchOrder = MatchOrder({
@@ -316,11 +316,11 @@ contract LambdaMatchOrder {
             BuyOrderId: buyOrder.orderId,
             size: buyOrder.size,
             price: sellOrder.price,
-            createTime: now,
+            createTime: _now,
             ip: sellOrder.ip,
             status: 0,
-            endTime: now + buyOrder.duration,
-            settleTime: now
+            endTime: _now + buyOrder.duration,
+            settleTime: _now
             });
 
         MatchOrderList.push(matchOrder);
@@ -485,11 +485,11 @@ contract LambdaMatchOrder {
         order.settleTime = _time;
     }
 
-    function settle(address _orderId) external {
+    function settle(address _orderId, uint _now) external {
         (MatchOrder memory order, uint i) = findMatchOrderByOrderId(_orderId);
         address sellOwner = order.SellAddress;
         require(sellOwner != address(0), "invail sell address");
-        uint settleTime = now;
+        uint settleTime = _now;
         uint div = settleTime - order.settleTime;
         // uint price = order.price * order.size * (div / 1 days);
         uint price = order.price * order.size * (div / 60);
