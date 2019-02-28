@@ -50,7 +50,7 @@ contract LambdaMatchOrder {
         uint createTime;
         uint endTime;
         uint settleTime;
-        uint status;
+        uint status; // 0 Not effective 1 effective 2 Invalid
         uint256 ip;
     }
 
@@ -65,6 +65,8 @@ contract LambdaMatchOrder {
     mapping(address => MatchOrder) internal mappingOrderIdToMatchOrder;
 
     mapping(address => MatchOrder[]) internal mappingAddressToMatchOrder;
+
+    mapping(address => address[]) internal mappingValidatorToPledge;
 
     uint[] internal priceList;
 
@@ -125,11 +127,64 @@ contract LambdaMatchOrder {
             quickSort(arr, i, right);
     }
 
+    function insertPledgeToValidator(address pledgeAddress, bytes32 _validatorAddress) internal {
+        address validatorAddress = address(_validatorAddress);
+        address[] storage pledgeAddressList =  mappingValidatorToPledge[validatorAddress];
+        uint length = pledgeAddressList.length;
+        if (length == 0) {
+            pledgeAddressList.push(pledgeAddress);
+        } else {
+            for (uint i=0; i<length; i++) {
+                if (pledgeAddressList[i] == pledgeAddress) {
+                    return;
+                }
+            }
+            pledgeAddressList.push(pledgeAddress);
+        }
+    }
+
+    function removePlegdeAddressFromValidator(bytes32 _pledgeAddress, bytes32 _validatorAddress) external {
+        address pledgeAddress = address(_pledgeAddress);
+        address validatorAddress = address(_validatorAddress);
+        address[] storage pledgeAddressList = mappingValidatorToPledge[validatorAddress];
+        uint length = pledgeAddressList.length;
+        if (length == 0) {
+            return;
+        } else {
+            (bool flag, uint index) = findPledgeFromValidator(pledgeAddress, validatorAddress);
+            if (flag) {
+                removePlegdeAddress(pledgeAddressList, index);
+            }
+        }
+
+    }
+
+    function findPledgeFromValidator(address _pledgeAddress, address _validatorAddress) internal returns (bool, uint) {
+        address[] storage pledgeAddressList = mappingValidatorToPledge[_validatorAddress];
+        uint length = pledgeAddressList.length;
+        for (uint i=0; i<length; i++) {
+            if (pledgeAddressList[i] == _pledgeAddress) {
+                return (true, i);
+            }
+        }
+        return (false, 0);
+    }
+
+    function removePlegdeAddress(address[] storage pledgeAddressList, uint index) internal {
+        if (index >= pledgeAddressList.length) return;
+
+        for (uint i = index; i<pledgeAddressList.length-1; i++){
+            pledgeAddressList[i] = pledgeAddressList[i+1];
+        }
+        delete pledgeAddressList[pledgeAddressList.length-1];
+        pledgeAddressList.length--;
+    }
 
     // pledge miner
-    function pledge(uint _size, uint _pledgeTime, uint _price) external payable returns (bool) {
+    function pledge(uint _size, uint _pledgeTime, uint _price, bytes32 _validatorAddress) external payable returns (bool) {
         uint pledgeMoney = _size * _price;
         require(msg.value >= pledgeMoney, "you should pay enough LAMB");
+        insertPledgeToValidator(msg.sender, _validatorAddress);
         if (PledgeIndex[msg.sender] == 0) {
             PledgeMiner memory p = PledgeMiner({
                 owner: msg.sender,
@@ -187,7 +242,7 @@ contract LambdaMatchOrder {
         require(miner.owner != address(0), "invail address");
         require(miner.status == 1, "pledge is aviable");
         // TODO
-         require((now - miner.pledgeTime) >= (90 * 1 days), "time is not satisfy");
+        require((now - miner.pledgeTime) >= (90 * 1 days), "time is not satisfy");
         // require((_now - miner.pledgeTime) >= (90 * 1), "time is not satisfy");
 
         delete PledgeIndex[minerAddress];
@@ -476,19 +531,19 @@ contract LambdaMatchOrder {
     //     array.length--;
     // }
 
-    function updateOwnerToMatchOrderList(address owner, address _orderId, uint _time) internal {
+    function updateOwnerToMatchOrderList(address owner, address _orderId, uint _time, uint status) internal {
         MatchOrder[] storage orderList = mappingAddressToMatchOrder[owner];
         for (uint i=0; i<orderList.length; i++) {
             if (_orderId == orderList[i].orderId) {
-                orderList[i].status = 1;
+                orderList[i].status = status;
                 orderList[i].settleTime = _time;
             }
         }
     }
 
-    function updateOrderIdToMatchOrderList(address _orderId, uint _time) internal {
+    function updateOrderIdToMatchOrderList(address _orderId, uint _time, uint status) internal {
         MatchOrder storage order = mappingOrderIdToMatchOrder[_orderId];
-        order.status = 1;
+        order.status = status;
         order.settleTime = _time;
     }
 
@@ -498,22 +553,35 @@ contract LambdaMatchOrder {
         require(sellOwner != address(0), "invail sell address");
         uint settleTime = _now;
         uint div = settleTime - order.settleTime;
-         uint price = order.price * order.size * (div / 1 days);
-//        uint price = order.price * order.size * (div / 60);
+        uint price = order.price * order.size * (div / 1 days);
+        //        uint price = order.price * order.size * (div / 60);
         // require(price != 0, "time is not enough");
-         uint newSettleTime = settleTime - (div % 1 days);
-//        uint newSettleTime = settleTime - (div % 60);
+        uint newSettleTime = settleTime - (div % 1 days);
+        //        uint newSettleTime = settleTime - (div % 60);
 
         MatchOrderList[i].settleTime =  newSettleTime;
         MatchOrderList[i].status = 1;
 
-        updateOwnerToMatchOrderList(order.SellAddress, order.orderId, newSettleTime);
+        if (newSettleTime > order.endTime) {
+            // delete matchOrder
+            delete MatchOrderList[i];
 
-        updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, newSettleTime);
+            updateOwnerToMatchOrderList(order.SellAddress, order.orderId, order.endTime, 2);
 
-        updateOrderIdToMatchOrderList(order.orderId, newSettleTime);
+            updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, order.endTime, 2);
 
-        sellOwner.transfer(price);
+            updateOrderIdToMatchOrderList(order.orderId, order.endTime, 2);
+
+        } else {
+
+            updateOwnerToMatchOrderList(order.SellAddress, order.orderId, newSettleTime, 1);
+
+            updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, newSettleTime, 1);
+
+            updateOrderIdToMatchOrderList(order.orderId, newSettleTime, 1);
+
+            sellOwner.transfer(price);
+        }
     }
 
 }
