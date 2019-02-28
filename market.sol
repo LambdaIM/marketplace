@@ -187,8 +187,8 @@ contract LambdaMatchOrder {
         require(miner.owner != address(0), "invail address");
         require(miner.status == 1, "pledge is aviable");
         // TODO
-        // require((now - miner.pledgeTime) >= (90 * 1 days), "time is not satisfy");
-        require((_now - miner.pledgeTime) >= (90 * 1), "time is not satisfy");
+         require((now - miner.pledgeTime) >= (90 * 1 days), "time is not satisfy");
+        // require((_now - miner.pledgeTime) >= (90 * 1), "time is not satisfy");
 
         delete PledgeIndex[minerAddress];
         delete PledgeMinerList[pos - 1];
@@ -364,7 +364,14 @@ contract LambdaMatchOrder {
         Order[] storage orderList = mappingPriceSellOrderList[_price];
         for (uint i=0; i<orderList.length; i++) {
             if (orderList[i].orderId == _orderId) {
-                flag ? orderList[i].size += size : orderList[i].size -= size;
+                if (flag) {
+                    removeOrder(orderList, i);
+                    if (orderList.length == 0) {
+                        delete mappingPriceSellOrderList[_price];
+                    }
+                } else {
+                    orderList[i].size -= size;
+                }
             }
         }
     }
@@ -491,11 +498,11 @@ contract LambdaMatchOrder {
         require(sellOwner != address(0), "invail sell address");
         uint settleTime = _now;
         uint div = settleTime - order.settleTime;
-        // uint price = order.price * order.size * (div / 1 days);
-        uint price = order.price * order.size * (div / 60);
+         uint price = order.price * order.size * (div / 1 days);
+//        uint price = order.price * order.size * (div / 60);
         // require(price != 0, "time is not enough");
-        // uint newSettleTime = settleTime - (div % 1 days);
-        uint newSettleTime = settleTime - (div % 60);
+         uint newSettleTime = settleTime - (div % 1 days);
+//        uint newSettleTime = settleTime - (div % 60);
 
         MatchOrderList[i].settleTime =  newSettleTime;
         MatchOrderList[i].status = 1;
