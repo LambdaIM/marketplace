@@ -22,8 +22,6 @@ contract LambdaMatchOrder {
         uint money;
     }
 
-    PledgeMiner[] internal PledgeMinerList;
-
     struct Order {
         address orderId;
         address owner;
@@ -34,10 +32,6 @@ contract LambdaMatchOrder {
         uint mold; // 0 sell 1 buy
         uint ip;
     }
-
-    mapping(address => Order[]) internal StorageAddressOrder;
-
-    mapping(address => uint) internal PledgeIndex;
 
     struct MatchOrder {
         address orderId;
@@ -60,79 +54,38 @@ contract LambdaMatchOrder {
         uint256 ip;
     }
 
+    // pledge miner data
+    PledgeMiner[] internal PledgeMinerList;
+
+    mapping(address => uint) internal PledgeIndex;
+
+    // order data
+    mapping(address => Order[]) internal StorageAddressOrder;
+
     Order [] internal SellOrderList;
 
     Order [] internal BuyOrderList; // save success match buy order;
 
-    MatchOrder [] internal MatchOrderList;
-
     mapping(uint => Order[]) internal mappingPriceSellOrderList;
+
+    // matchOrder data
+    MatchOrder [] internal MatchOrderList;
 
     mapping(address => MatchOrder) internal mappingOrderIdToMatchOrder;
 
     mapping(address => MatchOrder[]) internal mappingAddressToMatchOrder;
 
+    uint[] internal priceList;
+
+    // validator data
     mapping(address => address[]) internal mappingValidatorToPledge;
 
     mapping(address => address) internal mappingPledgeAddressToValidatorAddress;
 
     Validator [] internal ValidatorList;
 
-    uint[] internal priceList;
-
     constructor () public payable {
 
-    }
-
-    // get pledge miner list interface
-    function getPledgeMinerList() external view returns (PledgeMiner[] memory) {
-        return PledgeMinerList;
-    }
-
-    function getOrderListByAddress(address _address) external view returns (Order[] memory) {
-        return StorageAddressOrder[_address];
-    }
-
-    function getMatchOrderListByAddress(address _address) external view returns (MatchOrder[] memory) {
-        return mappingAddressToMatchOrder[_address];
-    }
-
-    function getMappingPriceSellOrderList(uint x) external view returns (Order[] memory) {
-        return mappingPriceSellOrderList[x];
-    }
-
-    function getSellOrderList() external view returns (Order[] memory) {
-        return SellOrderList;
-    }
-
-    function getMatchOrderList() external view returns (MatchOrder[] memory) {
-        return MatchOrderList;
-    }
-
-    function getMatchOrderByOrderId(address _orderId) external view returns (MatchOrder memory) {
-        return mappingOrderIdToMatchOrder[_orderId];
-    }
-
-    function getPriceList() external view returns (uint[]) {
-        return priceList;
-    }
-
-    function findValidatorByPledgeAddress(address _pledgeAddress) external view returns (Validator[]) {
-        address pledgeAddress = _pledgeAddress;
-        address validatorAddress = mappingPledgeAddressToValidatorAddress[pledgeAddress];
-        if (validatorAddress == 0) {
-            require(false, "can not find validator");
-        }
-        uint length = ValidatorList.length;
-        Validator[] memory list = new Validator[](1);
-        for (uint i=0; i<length; i++) {
-            if (ValidatorList[i].validatorAddress == validatorAddress) {
-                Validator v = ValidatorList[i];
-                list[0] = v;
-                return list;
-            }
-        }
-        require(false, "can not find validator");
     }
 
     function quickSort(uint[] storage arr, int left, int right) internal{
@@ -157,7 +110,7 @@ contract LambdaMatchOrder {
 
     function insertPledgeToValidator(address pledgeAddress, address _validatorAddress) internal {
         // validator address is not in ValidatorList
-        bool flag = findValidator(_validatorAddress);
+        (bool flag, uint index, Validator memory v) = findValidator(_validatorAddress);
         if (!flag) {
             require(false, "can not find validator in pledgeValidatorList");
         }
@@ -182,8 +135,9 @@ contract LambdaMatchOrder {
         }
     }
 
-    function removePlegdeAddressFromValidator(address _pledgeAddress, address _validatorAddress) external {
+    function removePledgeAddressFromValidator(address _pledgeAddress, address _validatorAddress) external {
         address[] storage pledgeAddressList = mappingValidatorToPledge[_validatorAddress];
+        mappingPledgeAddressToValidatorAddress[_pledgeAddress] = 0;
         uint length = pledgeAddressList.length;
         if (length == 0) {
             return;
@@ -226,20 +180,55 @@ contract LambdaMatchOrder {
             money: _money,
             ip: _ip
             });
-        bool flag = findValidator(validatorAddress);
+        (bool flag, uint index, Validator memory validator) = findValidator(validatorAddress);
         if (!flag) {
             ValidatorList.push(v);
         }
     }
 
-    function findValidator(address _validatorAddress) internal view returns (bool) {
+    function validatorRevert() external payable returns (bool) {
+        address validatorAddress = msg.sender;
+        (bool flag, uint index, Validator memory validator) = findValidator(validatorAddress);
+        if (!flag) {
+            require(false, "you have not pledge!");
+        }
+        // delete ValidatorList   delete mappingValidatorToPledge   delete mappingPledgeAddressToValidatorAddress
+        removeValidatorFromList(validatorAddress);
+        removeValidatorFromMappingValidatorToPledge(validatorAddress);
+        // removeMappingPledgeAddressToValidatorAddress(validatorAddress);
+        uint money = validator.money;
+        validatorAddress.transfer(money);
+    }
+
+    function removeValidatorFromList(address _validatorAddress) internal {
+        (bool flag, uint index, Validator memory validator) = findValidator(_validatorAddress);
+        if (!flag) {
+            require(false, "can not find validator in validatorList");
+        }
+        if (index >= ValidatorList.length) return;
+        for (uint i = index; i<ValidatorList.length-1; i++){
+            ValidatorList[i] = ValidatorList[i+1];
+        }
+        delete ValidatorList[ValidatorList.length-1];
+        ValidatorList.length--;
+    }
+    function removeValidatorFromMappingValidatorToPledge(address _validatorAddress) internal {
+        address[] storage pledgeList = mappingValidatorToPledge[_validatorAddress];
+        for (uint i=0; i<pledgeList.length; i++) {
+            delete mappingPledgeAddressToValidatorAddress[pledgeList[i]];
+        }
+        delete mappingValidatorToPledge[_validatorAddress];
+    }
+
+    function findValidator(address _validatorAddress) internal view returns (bool, uint, Validator) {
         uint length = ValidatorList.length;
         for (uint i=0; i<length; i++) {
             if (ValidatorList[i].validatorAddress == _validatorAddress) {
-                return true;
+                return (true, i, ValidatorList[i]);
             }
         }
-        return false;
+        Validator memory v = Validator(0, 0, 0);
+        return (false, 0, v);
     }
 
     // pledge miner
@@ -268,17 +257,20 @@ contract LambdaMatchOrder {
         }
     }
 
-    function pledgeRevert(uint _now) external {
-        address minerAddress = msg.sender;
+    function pledgeRevert(uint _now, address minerAddress) external payable {
         uint pos = PledgeIndex[minerAddress];
         PledgeMiner storage miner = PledgeMinerList[pos - 1];
         require(miner.owner != address(0), "invail address");
         require(miner.status != 1, "status is unaviable, can not revert pledge");
 
-        miner.status = 1;
-        miner.pledgeTime = _now;
+        // miner.status = 1;
+        // miner.pledgeTime = _now;
+
+        delete PledgeIndex[minerAddress];
+        delete PledgeMinerList[pos - 1];
 
         deleteMinerSellOrder(minerAddress);
+        minerAddress.transfer(miner.money);
     }
 
     function deleteMinerSellOrder(address _address) internal {
@@ -295,26 +287,47 @@ contract LambdaMatchOrder {
                 }
             }
         }
+        delete StorageAddressOrder[_address];
+        handlerMinerMatchOrder(_address);
     }
 
-    function withdrawPledge(uint _now) external {
-        address minerAddress = msg.sender;
-        uint pos = PledgeIndex[minerAddress];
-        PledgeMiner memory miner = PledgeMinerList[pos - 1];
-        require(miner.owner != address(0), "invail address");
-        require(miner.status == 1, "pledge is aviable");
-        // TODO
-        require((now - miner.pledgeTime) >= (90 * 1 days), "time is not satisfy");
-        // require((_now - miner.pledgeTime) >= (90 * 1), "time is not satisfy");
-
-        delete PledgeIndex[minerAddress];
-        delete PledgeMinerList[pos - 1];
-        minerAddress.transfer(miner.money);
+    function handlerMinerMatchOrder(address _address) internal {
+        changeStatusMatchOrder(_address);
     }
 
-    function createOrder(uint _size, uint _price, uint _duration, uint _mold, uint256 _ip, uint _now) public payable {
+    function changeStatusMatchOrder(address _address) internal {
+        for (uint i=0; i<MatchOrderList.length; i++) {
+            // address memory sellAddress = MatchOrderList[i].SellAddress;
+            if (MatchOrderList[i].SellAddress == _address) {
+                MatchOrderList[i].status = 3;
+                mappingOrderIdToMatchOrder[MatchOrderList[i].orderId].status = 3;
+                MatchOrder[] storage matchOrderList = mappingAddressToMatchOrder[MatchOrderList[i].BuyAddress];
+                for (uint j=0; j<matchOrderList.length; j++) {
+                    if (matchOrderList[j].SellAddress == _address) {
+                        matchOrderList[j].status = 3;
+                    }
+                }
+            }
+        }
+    }
+
+
+    // function withdrawPledge(uint _now, address minerAddress) external {
+    //     uint pos = PledgeIndex[minerAddress];
+    //     PledgeMiner memory miner = PledgeMinerList[pos - 1];
+    //     require(miner.owner != address(0), "invail address");
+    //     require(miner.status == 1, "pledge is aviable");
+    //     // TODO
+    //     require((now - miner.pledgeTime) >= (90 * 1 days), "time is not satisfy");
+    //     // require((_now - miner.pledgeTime) >= (90 * 1), "time is not satisfy");
+
+    //     delete PledgeIndex[minerAddress];
+    //     delete PledgeMinerList[pos - 1];
+    //     minerAddress.transfer(miner.money);
+    // }
+
+    function createOrder(uint _size, uint _price, uint _duration, uint _mold, uint256 _ip, uint _now, address _address) public payable {
         // if mold == 0  sell
-        address _address = msg.sender;
         uint index = PledgeIndex[_address];
         if (_mold == 0) {
             require(index != 0, "you should pledge sector");
@@ -454,7 +467,7 @@ contract LambdaMatchOrder {
 
         bytes32 orderIdBytes = bytes32(uint256(orderId) << 96);
 
-        // order(orderIdBytes, buyBytes, sellBytes, sellOrder.ip);
+        order(orderIdBytes, buyBytes, sellBytes, sellOrder.ip);
 
         // uint divValue = msg.value - (buyOrder.size * sellOrder.price * (buyOrder.duration / 1 days));
         // require(divValue >= 0, "money is not enough");
@@ -509,20 +522,18 @@ contract LambdaMatchOrder {
         orderList.push(_order);
     }
 
-    function cancelOrder(address _orderId) external returns (Order memory) {
-        address owner = msg.sender;
+    function cancelOrder(address _orderId, address owner) external returns (Order memory) {
         (Order memory order, uint index) = findOrderByOrderId(owner, _orderId);
         require(owner == order.owner, "you are not have this order");
         // remove order from list;
         // add size to pledge
         removeOrder(SellOrderList, index);
         handerMappingSellOrderList(order.price, order.orderId, order.size, true);
-        handerMappingSellOrderStorage(_orderId);
+        handerMappingSellOrderStorage(_orderId, owner);
         backOrderSizeToPledge(order);
     }
 
-    function handerMappingSellOrderStorage(address _orderId) internal {
-        address owner = msg.sender;
+    function handerMappingSellOrderStorage(address _orderId, address owner) internal {
         Order[] storage orderList = StorageAddressOrder[owner];
         for (uint i = 0; i < orderList.length; i++) {
             if (orderList[i].orderId == _orderId) {
@@ -572,6 +583,7 @@ contract LambdaMatchOrder {
         }
         require(false, 'can not find matchOrder');
     }
+
 
     function removeOrder(Order[] storage orderList, uint index) internal {
         if (index >= orderList.length) return;
@@ -644,6 +656,58 @@ contract LambdaMatchOrder {
 
             sellOwner.transfer(price);
         }
+    }
+
+
+    // get pledge miner list interface
+    function getPledgeMinerList() external view returns (PledgeMiner[] memory) {
+        return PledgeMinerList;
+    }
+
+    function getOrderListByAddress(address _address) external view returns (Order[] memory) {
+        return StorageAddressOrder[_address];
+    }
+
+    function getMatchOrderListByAddress(address _address) external view returns (MatchOrder[] memory) {
+        return mappingAddressToMatchOrder[_address];
+    }
+
+    function getMappingPriceSellOrderList(uint x) external view returns (Order[] memory) {
+        return mappingPriceSellOrderList[x];
+    }
+
+    function getSellOrderList() external view returns (Order[] memory) {
+        return SellOrderList;
+    }
+
+    function getMatchOrderList() external view returns (MatchOrder[] memory) {
+        return MatchOrderList;
+    }
+
+    function getMatchOrderByOrderId(address _orderId) external view returns (MatchOrder memory) {
+        return mappingOrderIdToMatchOrder[_orderId];
+    }
+
+    function getPriceList() external view returns (uint[]) {
+        return priceList;
+    }
+
+    function findValidatorByPledgeAddress(address _pledgeAddress) external view returns (Validator[]) {
+        address pledgeAddress = _pledgeAddress;
+        address validatorAddress = mappingPledgeAddressToValidatorAddress[pledgeAddress];
+        if (validatorAddress == 0) {
+            require(false, "can not find validator");
+        }
+        uint length = ValidatorList.length;
+        Validator[] memory list = new Validator[](1);
+        for (uint i=0; i<length; i++) {
+            if (ValidatorList[i].validatorAddress == validatorAddress) {
+                Validator v = ValidatorList[i];
+                list[0] = v;
+                return list;
+            }
+        }
+        require(false, "can not find validator");
     }
 
 }
