@@ -51,7 +51,6 @@ contract LambdaMatchOrder {
 
     struct Validator {
         address validatorAddress;
-        uint    money;
         uint256 ip;
     }
 
@@ -67,12 +66,10 @@ contract LambdaMatchOrder {
     Validator [] internal ValidatorList;
 
     // pledge validator
-    function pledgeValidator(uint _money, uint256 _ip) external payable returns (bool) {
-        require(msg.value >= _money, "you should pay enough LAMB");
+    function pledgeValidator(uint256 _ip) external payable returns (bool) {
         address validatorAddress = msg.sender;
         Validator memory v = Validator({
             validatorAddress: validatorAddress,
-            money: _money,
             ip: _ip
             });
         (bool flag, uint index, Validator memory validator) = findValidator(validatorAddress);
@@ -90,7 +87,7 @@ contract LambdaMatchOrder {
                 return (true, i, ValidatorList[i]);
             }
         }
-        Validator memory v = Validator(0, 0, 0);
+        Validator memory v = Validator(0, 0);
         return (false, 0, v);
     }
 
@@ -104,8 +101,6 @@ contract LambdaMatchOrder {
         removeValidatorFromList(validatorAddress);
         removeValidatorFromMappingValidatorToPledge(validatorAddress);
         // removeMappingPledgeAddressToValidatorAddress(validatorAddress);
-        uint money = validator.money;
-        validatorAddress.transfer(money);
     }
 
     function removeValidatorFromList(address _validatorAddress) internal {
