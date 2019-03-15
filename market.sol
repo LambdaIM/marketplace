@@ -66,7 +66,7 @@ contract LambdaMatchOrder {
     Validator [] internal ValidatorList;
 
     // pledge validator
-    function pledgeValidator(uint256 _ip) external payable returns (bool) {
+    function pledgeValidator(uint256 _ip) external returns (bool) {
         address validatorAddress = msg.sender;
         Validator memory v = Validator({
             validatorAddress: validatorAddress,
@@ -91,7 +91,7 @@ contract LambdaMatchOrder {
         return (false, 0, v);
     }
 
-    function validatorRevert() external payable returns (bool) {
+    function validatorRevert() external returns (bool) {
         address validatorAddress = msg.sender;
         (bool flag, uint index, Validator memory validator) = findValidator(validatorAddress);
         if (!flag) {
