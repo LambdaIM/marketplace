@@ -20,6 +20,7 @@ contract LambdaMatchOrder {
         uint status; //  0 aviable 1 unaviable
         uint pledgeTime;
         uint money;
+        address validator;
     }
 
     struct Order {
@@ -144,7 +145,8 @@ contract LambdaMatchOrder {
                 useSize: 0,
                 status: 0,
                 pledgeTime: _pledgeTime,
-                size: _size
+                size: _size,
+                validator: _validatorAddress
                 });
             uint index = PledgeMinerList.push(p);
             PledgeIndex[_pledgeAddress] = index;
