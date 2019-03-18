@@ -109,7 +109,7 @@ contract LambdaMatchOrder {
             require(false, "can not find validator in validatorList");
         }
         if (index >= ValidatorList.length) return;
-        for (uint i = index; i<ValidatorList.length; i++){
+        for (uint i = index; i<ValidatorList.length-1; i++){
             ValidatorList[i] = ValidatorList[i+1];
         }
         delete ValidatorList[ValidatorList.length-1];
@@ -214,7 +214,7 @@ contract LambdaMatchOrder {
     function removePlegdeAddress(address[] storage pledgeAddressList, uint index) internal {
         if (index >= pledgeAddressList.length) return;
 
-        for (uint i = index; i<pledgeAddressList.length; i++){
+        for (uint i = index; i<pledgeAddressList.length-1; i++){
             pledgeAddressList[i] = pledgeAddressList[i+1];
         }
         delete pledgeAddressList[pledgeAddressList.length-1];
@@ -223,7 +223,7 @@ contract LambdaMatchOrder {
 
     function pledgeRevert(uint _now, address minerAddress) external payable {
         uint pos = PledgeIndex[minerAddress];
-        PledgeMiner storage miner = PledgeMinerList[pos - 1];
+        PledgeMiner memory miner = PledgeMinerList[pos - 1];
         require(miner.owner != address(0), "invail address");
         require(miner.status != 1, "status is unaviable, can not revert pledge");
 
@@ -266,7 +266,7 @@ contract LambdaMatchOrder {
     function removeOrder(Order[] storage orderList, uint index) internal {
         if (index >= orderList.length) return;
 
-        for (uint i = index; i<orderList.length; i++){
+        for (uint i = index; i<orderList.length-1; i++){
             orderList[i] = orderList[i+1];
         }
         delete orderList[orderList.length-1];
@@ -608,18 +608,18 @@ contract LambdaMatchOrder {
         require(sellOwner != address(0), "invail sell address");
         uint settleTime = _now;
         uint div = settleTime - order.settleTime;
-        uint price = order.price * order.size * (div / 1 days);
-        //        uint price = order.price * order.size * (div / 60);
+//        uint price = order.price * order.size * (div / 1 days);
+        uint price = order.price * order.size * (div / 60);
         // require(price != 0, "time is not enough");
-        uint newSettleTime = settleTime - (div % 1 days);
-        //        uint newSettleTime = settleTime - (div % 60);
+//        uint newSettleTime = settleTime - (div % 1 days);
+        uint newSettleTime = settleTime - (div % 60);
 
         MatchOrderList[i].settleTime =  newSettleTime;
         MatchOrderList[i].status = 1;
 
         if (newSettleTime > order.endTime) {
             // delete matchOrder
-            delete MatchOrderList[i];
+            MatchOrderList[i].status = 2;
 
             updateOwnerToMatchOrderList(order.SellAddress, order.orderId, order.endTime, 2);
 
