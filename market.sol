@@ -32,6 +32,7 @@ contract LambdaMatchOrder {
         uint createTime;
         uint mold; // 0 sell 1 buy
         uint ip;
+        uint sellSize;
     }
 
     struct MatchOrder {
@@ -67,7 +68,7 @@ contract LambdaMatchOrder {
     Validator [] internal ValidatorList;
 
     // pledge validator
-    function pledgeValidator(uint256 _ip) external returns (bool) {
+    function pledgeValidator(uint256 _ip) external payable returns (bool) {
         address validatorAddress = msg.sender;
         Validator memory v = Validator({
             validatorAddress: validatorAddress,
@@ -364,7 +365,8 @@ contract LambdaMatchOrder {
             mold: _mold,
             createTime: _now,
             duration: _duration * 1 days,
-            ip: _ip
+            ip: _ip,
+            sellSize: _size
             });
 
         if (_mold == 0) {
