@@ -31,7 +31,7 @@ contract LambdaMatchOrder {
         uint duration;
         uint createTime;
         uint mold; // 0 sell 1 buy
-        uint ip;
+        uint peerId;
         uint sellSize;
     }
 
@@ -47,7 +47,7 @@ contract LambdaMatchOrder {
         uint endTime;
         uint settleTime;
         uint status; // 0 Not effective 1 effective 2 Invalid
-        uint256 ip;
+        uint peerId;
         uint amount;
     }
 
@@ -63,8 +63,9 @@ contract LambdaMatchOrder {
     // ----------------------------------- validator data store   method  -----------------------------------------
 
     // validator data
-    mapping(address => address[]) internal mappingValidatorToPledge;
+    mapping(address => address[]) internal mappingValidatorToPledgeAddress;
     mapping(address => address) internal mappingPledgeAddressToValidatorAddress;
+    mapping(address => PledgeMiner[]) internal mappingValidatorToPledge;
     Validator [] internal ValidatorList;
 
     // pledge validator
@@ -99,7 +100,7 @@ contract LambdaMatchOrder {
         if (!flag) {
             require(false, "you have not pledge!");
         }
-        // delete ValidatorList   delete mappingValidatorToPledge   delete mappingPledgeAddressToValidatorAddress
+        // delete ValidatorList   delete mappingValidatorToPledgeAddress   delete mappingPledgeAddressToValidatorAddress
         removeValidatorFromList(validatorAddress);
         removeValidatorFromMappingValidatorToPledge(validatorAddress);
         // removeMappingPledgeAddressToValidatorAddress(validatorAddress);
@@ -119,11 +120,11 @@ contract LambdaMatchOrder {
 
     }
     function removeValidatorFromMappingValidatorToPledge(address _validatorAddress) internal {
-        address[] storage pledgeList = mappingValidatorToPledge[_validatorAddress];
+        address[] storage pledgeList = mappingValidatorToPledgeAddress[_validatorAddress];
         for (uint i=0; i<pledgeList.length; i++) {
             delete mappingPledgeAddressToValidatorAddress[pledgeList[i]];
         }
-        delete mappingValidatorToPledge[_validatorAddress];
+        delete mappingValidatorToPledgeAddress[_validatorAddress];
     }
 
     // ----------------------------------- miner data store   method  -----------------------------------------
@@ -163,7 +164,7 @@ contract LambdaMatchOrder {
         if (!flag) {
             require(false, "can not find validator in pledgeValidatorList");
         }
-        address[] storage pledgeAddressList =  mappingValidatorToPledge[_validatorAddress];
+        address[] storage pledgeAddressList =  mappingValidatorToPledgeAddress[_validatorAddress];
         address validator = mappingPledgeAddressToValidatorAddress[pledgeAddress];
         if (validator == 0) {
             mappingPledgeAddressToValidatorAddress[pledgeAddress] = _validatorAddress;
@@ -188,7 +189,7 @@ contract LambdaMatchOrder {
     }
 
     function removePledgeAddressFromValidator(address _pledgeAddress, address _validatorAddress) external {
-        address[] storage pledgeAddressList = mappingValidatorToPledge[_validatorAddress];
+        address[] storage pledgeAddressList = mappingValidatorToPledgeAddress[_validatorAddress];
         mappingPledgeAddressToValidatorAddress[_pledgeAddress] = 0;
         uint length = pledgeAddressList.length;
         if (length == 0) {
@@ -203,7 +204,7 @@ contract LambdaMatchOrder {
     }
 
     function findPledgeFromValidator(address _pledgeAddress, address _validatorAddress) internal view returns (bool, uint) {
-        address[] storage pledgeAddressList = mappingValidatorToPledge[_validatorAddress];
+        address[] storage pledgeAddressList = mappingValidatorToPledgeAddress[_validatorAddress];
         uint length = pledgeAddressList.length;
         for (uint i=0; i<length; i++) {
             if (pledgeAddressList[i] == _pledgeAddress) {
@@ -336,7 +337,7 @@ contract LambdaMatchOrder {
     //     minerAddress.transfer(miner.money);
     // }
 
-    function createOrder(uint _size, uint _price, uint _duration, uint _mold, uint256 _ip, uint _now, address _address) public payable {
+    function createOrder(uint _size, uint _price, uint _duration, uint _mold, uint256 _peerId, uint _now, address _address) public payable {
         // if mold == 0  sell
         uint index = PledgeIndex[_address];
         if (_mold == 0) {
@@ -354,7 +355,7 @@ contract LambdaMatchOrder {
                 _price,
                 _mold,
                 _duration,
-                _ip
+                _peerId
             ));
         // create Order
         Order memory order = Order({
@@ -365,7 +366,7 @@ contract LambdaMatchOrder {
             mold: _mold,
             createTime: _now,
             duration: _duration * 1 days,
-            ip: _ip,
+            peerId: _peerId,
             sellSize: _size
             });
 
@@ -464,7 +465,7 @@ contract LambdaMatchOrder {
             size: buyOrder.size,
             price: sellOrder.price,
             createTime: _now,
-            ip: sellOrder.ip,
+            peerId: sellOrder.peerId,
             status: 0,
             endTime: _now + buyOrder.duration,
             settleTime: _now,
@@ -485,7 +486,7 @@ contract LambdaMatchOrder {
 
         bytes32 orderIdBytes = bytes32(uint256(orderId) << 96);
 
-        order(orderIdBytes, buyBytes, sellBytes, sellOrder.ip);
+        order(orderIdBytes, buyBytes, sellBytes, sellOrder.peerId);
 
         handerBuyOrder(buyOrder, BuyOrderList);
         handerSellOrder(buyOrder, sellOrder, SellOrderList);
@@ -656,10 +657,10 @@ contract LambdaMatchOrder {
         uint div = settleTime - order.settleTime;
         uint duration = order.endTime - order.createTime;
         uint transferMoney = order.amount * (div / 1 days) / (duration / 1 days);
-//        uint transferMoney = order.amount * (div / 60) / (duration / 1 days);
+        //        uint transferMoney = order.amount * (div / 60) / (duration / 1 days);
         // require(price != 0, "time is not enough");
         uint newSettleTime = settleTime - (div % 1 days);
-//        uint newSettleTime = settleTime - (div % 60);
+        //        uint newSettleTime = settleTime - (div % 60);
 
         MatchOrderList[i].settleTime =  newSettleTime;
         MatchOrderList[i].status = 1;
@@ -827,6 +828,26 @@ contract LambdaMatchOrder {
             }
         }
         require(false, "can not find validator");
+    }
+
+    function getValidatorPledgeListByValidatorAddress(address _validatorAddress) external view returns (PledgeMiner[]) {
+        address[] storage pledgeAddressList =  mappingValidatorToPledgeAddress[_validatorAddress];
+        uint length = pledgeAddressList.length;
+        PledgeMiner[] memory list = new PledgeMiner[](length);
+        for (uint i=0; i<length; i++) {
+            PledgeMiner memory p = findPledgeFromList(pledgeAddressList[i]);
+            list[i] = p;
+        }
+        return list;
+    }
+
+    function findPledgeFromList(address _pledgeAddress) internal view returns (PledgeMiner) {
+        uint length = PledgeMinerList.length;
+        for (uint i=0; i<length; i++) {
+            if (PledgeMinerList[i].owner == _pledgeAddress) {
+                return PledgeMinerList[i];
+            }
+        }
     }
 
     // libs
