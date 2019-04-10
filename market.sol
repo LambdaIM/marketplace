@@ -235,9 +235,21 @@ contract LambdaMatchOrder {
 
         delete PledgeIndex[minerAddress];
         removePledgeMiner(pos - 1);
+        // TODO  handler PledgeIndex
+        handlerPledgeIndex(pos);
 
         deleteMinerSellOrder(minerAddress);
         minerAddress.transfer(miner.money);
+    }
+
+    function handlerPledgeIndex(uint pos) internal {
+        for (uint i=0; i<PledgeMinerList.length; i++) {
+            address miner = PledgeMinerList[i].owner;
+            uint index = PledgeIndex[miner];
+            if (index > pos) {
+                PledgeIndex[miner] = index - 1;
+            }
+        }
     }
 
     function removePledgeMiner(uint index) internal {
