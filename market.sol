@@ -697,6 +697,7 @@ contract LambdaMatchOrder {
 
             updateOrderIdToMatchOrderList(order.orderId, newSettleTime, 1);
 
+            // cancel send pdp reward
             sellOwner.transfer(transferMoney);
         }
     }
@@ -747,16 +748,55 @@ contract LambdaMatchOrder {
         return result;
     }
 
-    function getMatchOrderListByAddress(address _address, uint pageNum, uint showNum) external view returns (MatchOrder[] memory) {
+    function filterMatchOrderListByFlag(MatchOrder[] memory list, address _address, uint flag) internal returns (MatchOrder[] memory) {
+        uint buyOrderNum = 0;
+        uint sellOrderNum = 0;
+        MatchOrder[] memory result;
+        for (uint i=0; i<list.length; i++) {
+            if (list[i].BuyAddress == _address) {
+                buyOrderNum += 1;
+            }
+            if (list[i].SellAddress == _address) {
+                sellOrderNum += 1;
+            }
+        }
+
+        if (flag == 0) {
+            result = new MatchOrder[](buyOrderNum);
+            uint buyCount = 0;
+            for (uint j=0; j<list.length; j++) {
+                if (list[j].BuyAddress == _address) {
+                    result[buyCount] = list[j];
+                    buyCount += 1;
+                }
+            }
+        } else {
+            uint sellCount = 0;
+            result = new MatchOrder[](sellOrderNum);
+            for (uint k=0; k<list.length; k++) {
+                if (list[j].SellAddress == _address) {
+                    result[sellCount] = list[k];
+                    sellCount += 1;
+                }
+            }
+        }
+        return result;
+    }
+
+    // flag 0 or 1    0 mean buy
+    function getMatchOrderListByAddress(address _address, uint pageNum, uint showNum, uint flag) external returns (MatchOrder[] memory) {
         MatchOrder[] memory matchOrderList = mappingAddressToMatchOrder[_address];
+
+        MatchOrder [] memory filterMatchOrderList = filterMatchOrderListByFlag(matchOrderList, _address, flag);
+
         if (pageNum == 0 && showNum == 0) {
-            return matchOrderList;
+            return filterMatchOrderList;
         }
 
         uint start = (pageNum - 1) * showNum;
         uint end = pageNum * showNum;
         MatchOrder[] memory result;
-        uint length = matchOrderList.length;
+        uint length = filterMatchOrderList.length;
         if (start > length) {
             return result;
         }
@@ -764,8 +804,8 @@ contract LambdaMatchOrder {
             end = length;
         }
         result = new MatchOrder[](end - start);
-        for (uint i=start; i<end; i++) {
-            result[i-start] = matchOrderList[i];
+        for (uint index=start; index<end; index++) {
+            result[index-start] = filterMatchOrderList[index];
         }
         return result;
     }
