@@ -54,6 +54,7 @@ contract LambdaMatchOrder {
     struct Validator {
         address validatorAddress;
         uint256 ip;
+        uint256 peerId;
     }
 
     constructor () public payable {
@@ -69,11 +70,12 @@ contract LambdaMatchOrder {
     Validator [] internal ValidatorList;
 
     // pledge validator
-    function pledgeValidator(uint256 _ip) external payable returns (bool) {
+    function pledgeValidator(uint256 _ip, uint256 _peerId) external payable returns (bool) {
         address validatorAddress = msg.sender;
         Validator memory v = Validator({
             validatorAddress: validatorAddress,
-            ip: _ip
+            ip: _ip,
+            peerId: _peerId
             });
         (bool flag, uint index, Validator memory validator) = findValidator(validatorAddress);
         if (!flag) {
@@ -749,6 +751,9 @@ contract LambdaMatchOrder {
     }
 
     function filterMatchOrderListByFlag(MatchOrder[] memory list, address _address, uint flag) internal returns (MatchOrder[] memory) {
+        if (flag == 2) {
+            return list;
+        }
         uint buyOrderNum = 0;
         uint sellOrderNum = 0;
         MatchOrder[] memory result;
