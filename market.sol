@@ -92,7 +92,7 @@ contract LambdaMatchOrder {
                 return (true, i, ValidatorList[i]);
             }
         }
-        Validator memory v = Validator(0, 0);
+        Validator memory v = Validator(0, 0, 0);
         return (false, 0, v);
     }
 
