@@ -33,7 +33,6 @@ contract LambdaMatchOrder {
         uint mold; // 0 sell 1 buy
         uint peerId;
         uint sellSize;
-        address matchId;
     }
 
     struct MatchOrder {
@@ -50,7 +49,6 @@ contract LambdaMatchOrder {
         uint status; // 0 Not effective 1 effective 2 Invalid
         uint peerId;
         uint amount;
-        address matchId;
     }
 
     struct Validator {
@@ -495,11 +493,11 @@ contract LambdaMatchOrder {
             Order memory sellOrder = sellOrderList[i];
             address sellAddress = sellOrder.owner;
 
-            (MatchOrder memory matchOrder, bytes32 orderId) = generateMatchOrder(buyOrder, sellOrder, _now, orderLength, _money);
+            (MatchOrder memory matchOrder, bytes32 matchOrderId) = generateMatchOrder(buyOrder, sellOrder, _now, orderLength, _money);
 
             MatchOrderList.push(matchOrder);
 
-            mappingOrderIdToMatchOrder[address(orderId)] = matchOrder;
+            mappingOrderIdToMatchOrder[address(matchOrderId)] = matchOrder;
 
             mappingAddressToMatchOrder[sellAddress].push(matchOrder);
 
@@ -509,7 +507,7 @@ contract LambdaMatchOrder {
 
             bytes32 sellBytes = bytes32(uint256(sellAddress) << 96);
 
-            bytes32 orderIdBytes = bytes32(uint256(orderId) << 96);
+            bytes32 orderIdBytes = bytes32(uint256(matchOrderId) << 96);
 
             order(orderIdBytes, buyBytes, sellBytes, sellOrder.peerId);
 
@@ -625,7 +623,7 @@ contract LambdaMatchOrder {
         require(false, "can not find Order");
     }
 
-    function findOrderByPriceOrSize(uint _size, uint _price, uint _duration, uint count, Order memory _order) internal returns (Order[] memory, uint price) {
+    function findOrderByPriceOrSize(uint _size, uint _price, uint _duration, uint count, Order memory _order) internal returns (Order[] memory, uint) {
         Order[] memory findOrderList;
         for (uint i=0; i<priceList.length; i++) {
             if (priceList[i] <= _price) {
@@ -634,9 +632,12 @@ contract LambdaMatchOrder {
                 uint index = 0;
                 for (uint j=0; j<orderList.length; j++) {
                     if (_size <= orderList[j].size && _duration <= orderList[j].duration && orderList[j].owner != _order.owner) {
-                        findOrderList[index] = orderList[j];
-                        index++;
-                        if (index > count) {
+                        bool ret = findPeerIdListInSellOrderList(orderList[j].peerId, findOrderList);
+                        if (!ret) {
+                            findOrderList[index] = orderList[j];
+                            index++;
+                        }
+                        if (index = count) {
                             return (findOrderList, findPrice);
                         }
                     }
@@ -893,7 +894,7 @@ contract LambdaMatchOrder {
         return priceList;
     }
 
-    function getPriceSellOrderList(uint _price, uint _size, uint duration, address _callAddress) external view returns (Order[] memory) {
+    function getPriceSellOrderList(uint _price, uint _size, uint _duration, address _callAddress) external view returns (Order[] memory) {
         Order[] memory findOrderList;
         for (uint i=0; i<priceList.length; i++) {
             if (priceList[i] <= _price) {
@@ -911,7 +912,16 @@ contract LambdaMatchOrder {
         return findOrderList;
     }
 
-    function getMatchOrderListByBuyOrderId(address _orderId) external view returns (MatchOrder memory) {
+    function findPeerIdListInSellOrderList(uint peerId, Order[] memory orderList) internal returns (bool) {
+        for (uint i=0; i<orderList.length; i++) {
+            if (orderList[i].peerId == peerId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function getMatchOrderListByBuyOrderId(address _orderId) external view returns (MatchOrder[] memory) {
         MatchOrder[] memory result;
         uint length = MatchOrderList.length;
         uint index = 0;
