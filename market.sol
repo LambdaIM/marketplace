@@ -420,26 +420,26 @@ contract LambdaMatchOrder {
 
     function handlerCreateOrderTime(uint _price, Order memory _order) internal {
         Order [] storage createOrderList = mappingPriceSellOrderList[_price];
-        uint length = createOrderList.length;
-        if (length == 0) {
-            createOrderList.push(_order);
-        } else {
-            for (uint i=0; i<length; i++) {
-                if (createOrderList[i].createTime >= _order.createTime) {
-                    for (uint j=length; j>i; j--) {
-                        createOrderList[j] = createOrderList[j-1];
-                        if (j == i+1) {
-                            createOrderList[i] = _order;
-                            return;
-                        }
-                    }
-                }
-                if (i == (length - 1)) {
-                    createOrderList.push(_order);
-                    return;
-                }
-            }
-        }
+        createOrderList.push(_order);
+//        if (length == 0) {
+//            createOrderList.push(_order);
+//        } else {
+//            for (uint i=0; i<length; i++) {
+//                if (createOrderList[i].createTime >= _order.createTime) {
+//                    for (uint j=length; j>i; j--) {
+//                        createOrderList[j] = createOrderList[j-1];
+//                        if (j == i+1) {
+//                            createOrderList[i] = _order;
+//                            return;
+//                        }
+//                    }
+//                }
+//                if (i == (length - 1)) {
+//                    createOrderList.push(_order);
+//                    return;
+//                }
+//            }
+//        }
     }
 
     function executeOrder(Order memory _order, uint _now, uint _money, uint count) public payable {
