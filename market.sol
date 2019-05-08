@@ -747,8 +747,13 @@ contract LambdaMatchOrder {
         return result;
     }
 
-    function getOrderListByAddress(address _address, uint pageNum, uint showNum) external view returns (Order[] memory) {
-        Order[] memory orderList = StorageAddressOrder[_address];
+    //flag 0 or 1
+    //0 sell
+    //1 buy
+    //2 all
+    function getOrderListByAddress(address _address, uint pageNum, uint showNum, uint flag) external view returns (Order[] memory) {
+        Order[] memory orderListAll = StorageAddressOrder[_address];
+        Order[] memory orderList = filterOrderListByFlag(orderListAll, flag);
         if (pageNum == 0 && showNum == 0) {
             return orderList;
         }
@@ -766,6 +771,43 @@ contract LambdaMatchOrder {
         result = new Order[](end - start);
         for (uint i=start; i<end; i++) {
             result[i-start] = orderList[i];
+        }
+        return result;
+    }
+
+    function filterOrderListByFlag(Order[] memory list, uint flag) internal returns (Order[] memory) {
+        if (flag == 2) {
+            return list;
+        }
+        uint buyOrderNum = 0;
+        uint sellOrderNum = 0;
+        Order[] memory result;
+        for (uint i=0; i<list.length; i++) {
+            if (list[i].mold == 1) {
+                buyOrderNum += 1;
+            }
+            if (list[i].mold == 0) {
+                sellOrderNum += 1;
+            }
+        }
+        if (flag == 1) {
+            result = new Order[](buyOrderNum);
+            uint buyCount = 0;
+            for (uint j=0; j<list.length; j++) {
+                if (list[j].mold == 1) {
+                    result[buyCount] = list[j];
+                    buyCount += 1;
+                }
+            }
+        } else {
+            uint sellCount = 0;
+            result = new Order[](sellOrderNum);
+            for (uint k=0; k<list.length; k++) {
+                if (list[j].mold == 0) {
+                    result[sellCount] = list[k];
+                    sellCount += 1;
+                }
+            }
         }
         return result;
     }
@@ -918,21 +960,31 @@ contract LambdaMatchOrder {
         return false;
     }
 
-    function getMatchOrderListByBuyOrderId(address _orderId) external view returns (MatchOrder[] memory) {
+    // flag 0 or 1   0 mean all
+    function getMatchOrderListByBuyOrderId(address _orderId, uint flag) external view returns (MatchOrder[] memory) {
         MatchOrder[] memory result;
         uint length = MatchOrderList.length;
         uint index = 0;
         for(uint i=0; i<length; i++) {
             if (MatchOrderList[i].BuyOrderId == _orderId) {
-                index++;
+                if (flag == 1 && MatchOrderList[i].status == 1) {
+                    index++;
+                } else {
+                    index++;
+                }
             }
         }
         result = new MatchOrder[](index);
         uint pos = 0;
         for(uint j=0; j<length; j++) {
             if (MatchOrderList[j].BuyOrderId == _orderId) {
-                result[pos] = MatchOrderList[j];
-                pos++;
+                if (flag == 1 && MatchOrderList[j].status == 1) {
+                    result[pos] = MatchOrderList[j];
+                    pos++;
+                } else {
+                    result[pos] = MatchOrderList[j];
+                    pos++;
+                }
             }
         }
         return result;
