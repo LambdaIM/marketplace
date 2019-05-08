@@ -226,23 +226,23 @@ contract LambdaMatchOrder {
         pledgeAddressList.length--;
     }
 
-    function pledgeRevert(uint _now, address minerAddress) external payable {
-        uint pos = PledgeIndex[minerAddress];
-        PledgeMiner memory miner = PledgeMinerList[pos - 1];
-        require(miner.owner != address(0), "invail address");
-        require(miner.status != 1, "status is unaviable, can not revert pledge");
+    // function pledgeRevert(uint _now, address minerAddress) external payable {
+    //     uint pos = PledgeIndex[minerAddress];
+    //     PledgeMiner memory miner = PledgeMinerList[pos - 1];
+    //     require(miner.owner != address(0), "invail address");
+    //     require(miner.status != 1, "status is unaviable, can not revert pledge");
 
-        // miner.status = 1;
-        // miner.pledgeTime = _now;
+    //     // miner.status = 1;
+    //     // miner.pledgeTime = _now;
 
-        delete PledgeIndex[minerAddress];
-        removePledgeMiner(pos - 1);
-        // TODO  handler PledgeIndex
-        handlerPledgeIndex(pos);
+    //     delete PledgeIndex[minerAddress];
+    //     removePledgeMiner(pos - 1);
+    //     // TODO  handler PledgeIndex
+    //     handlerPledgeIndex(pos);
 
-        deleteMinerSellOrder(minerAddress);
-        minerAddress.transfer(miner.money);
-    }
+    //     deleteMinerSellOrder(minerAddress);
+    //     minerAddress.transfer(miner.money);
+    // }
 
     function handlerPledgeIndex(uint pos) internal {
         for (uint i=0; i<PledgeMinerList.length; i++) {
@@ -412,7 +412,10 @@ contract LambdaMatchOrder {
                 }
                 if (i == (length - 1)) {
                     priceList.push(_price);
-                    if (priceList.length > 1) quickSort(priceList, 0, int(priceList.length - 1));
+                    if (priceList.length > 1) {
+                        quickSort(priceList, 0, int(priceList.length - 1));
+                        return;
+                    }
                 }
             }
         }
@@ -421,25 +424,25 @@ contract LambdaMatchOrder {
     function handlerCreateOrderTime(uint _price, Order memory _order) internal {
         Order [] storage createOrderList = mappingPriceSellOrderList[_price];
         createOrderList.push(_order);
-//        if (length == 0) {
-//            createOrderList.push(_order);
-//        } else {
-//            for (uint i=0; i<length; i++) {
-//                if (createOrderList[i].createTime >= _order.createTime) {
-//                    for (uint j=length; j>i; j--) {
-//                        createOrderList[j] = createOrderList[j-1];
-//                        if (j == i+1) {
-//                            createOrderList[i] = _order;
-//                            return;
-//                        }
-//                    }
-//                }
-//                if (i == (length - 1)) {
-//                    createOrderList.push(_order);
-//                    return;
-//                }
-//            }
-//        }
+        // if (length == 0) {
+
+        // } else {
+        //     for (uint i=0; i<length; i++) {
+        //         if (createOrderList[i].createTime >= _order.createTime) {
+        //             for (uint j=length; j>i; j--) {
+        //                 createOrderList[j] = createOrderList[j-1];
+        //                 if (j == i+1) {
+        //                     createOrderList[i] = _order;
+        //                     return;
+        //                 }
+        //             }
+        //         }
+        //         if (i == (length - 1)) {
+        //             createOrderList.push(_order);
+        //             return;
+        //         }
+        //     }
+        // }
     }
 
     function executeOrder(Order memory _order, uint _now, uint _money, uint count) public payable {
@@ -457,8 +460,7 @@ contract LambdaMatchOrder {
                 sellOrder.owner,
                 buyOrder.price,
                 buyOrder.size,
-                _now,
-                sellOrder.orderId
+                _now
             ));
         uint buyMoney = (buyOrder.size * sellOrder.price * (buyOrder.duration / 1 days)) / 1024;
         uint divValue = (_money / _count) - buyMoney;
@@ -494,7 +496,7 @@ contract LambdaMatchOrder {
             Order memory sellOrder = sellOrderList[i];
             address sellAddress = sellOrder.owner;
 
-            (MatchOrder memory matchOrder, bytes32 matchOrderId) = generateMatchOrder(sellOrder, buyOrder, _now, orderLength, _money);
+            (MatchOrder memory matchOrder, bytes32 matchOrderId) = generateMatchOrder(buyOrder, sellOrder, _now, orderLength, _money);
 
             MatchOrderList.push(matchOrder);
 
@@ -510,7 +512,7 @@ contract LambdaMatchOrder {
 
             bytes32 orderIdBytes = bytes32(uint256(matchOrderId) << 96);
 
-            order(orderIdBytes, buyBytes, sellBytes, sellOrder.peerId);
+            // order(orderIdBytes, buyBytes, sellBytes, sellOrder.peerId);
 
             handerBuyOrder(buyOrder, BuyOrderList);
             handerSellOrder(buyOrder, sellOrder, SellOrderList);
@@ -562,16 +564,16 @@ contract LambdaMatchOrder {
         orderList.push(_order);
     }
 
-    function cancelOrder(address _orderId, address owner) external returns (Order memory) {
-        (Order memory order, uint index) = findOrderByOrderId(owner, _orderId);
-        require(owner == order.owner, "you are not have this order");
-        // remove order from list;
-        // add size to pledge
-        removeOrder(SellOrderList, index);
-        handerMappingSellOrderList(order, order.size, true);
-        handerMappingSellOrderStorage(_orderId, owner);
-        backOrderSizeToPledge(order);
-    }
+    // function cancelOrder(address _orderId, address owner) external returns (Order memory) {
+    //     (Order memory order, uint index) = findOrderByOrderId(owner, _orderId);
+    //     require(owner == order.owner, "you are not have this order");
+    //     // remove order from list;
+    //     // add size to pledge
+    //     removeOrder(SellOrderList, index);
+    //     handerMappingSellOrderList(order, order.size, true);
+    //     handerMappingSellOrderStorage(_orderId, owner);
+    //     backOrderSizeToPledge(order);
+    // }
 
     function handerMappingSellOrderStorage(address _orderId, address owner) internal {
         Order[] storage orderList = StorageAddressOrder[owner];
@@ -582,38 +584,38 @@ contract LambdaMatchOrder {
         }
     }
 
-    function backOrderSizeToPledge(Order memory _order) internal {
-        address seller = _order.owner;
-        uint size = _order.size;
+    // function backOrderSizeToPledge(Order memory _order) internal {
+    //     address seller = _order.owner;
+    //     uint size = _order.size;
 
-        uint index = PledgeIndex[seller];
-        PledgeMiner storage miner = PledgeMinerList[index - 1];
-        miner.useSize -= size;
-    }
+    //     uint index = PledgeIndex[seller];
+    //     PledgeMiner storage miner = PledgeMinerList[index - 1];
+    //     miner.useSize -= size;
+    // }
 
-    function backOrderSizeToOrder(MatchOrder memory _matchOrder) internal {
-        uint size = _matchOrder.size;
-        address sellOrderId = _matchOrder.SellOrderId;
-        address sellAddress = _matchOrder.SellAddress;
-        uint price = _matchOrder.price;
-        Order[] storage orderList = StorageAddressOrder[sellAddress];
-        for (uint i=0; i<orderList.length; i++) {
-            if (orderList[i].orderId == sellOrderId) {
-                orderList[i].size += size;
-            }
-        }
-        for (uint j=0; j<SellOrderList.length; j++) {
-            if (SellOrderList[j].orderId == sellOrderId) {
-                SellOrderList[j].size += size;
-            }
-        }
-        Order[] storage priceOrderList = mappingPriceSellOrderList[price];
-        for (uint k=0; k<priceOrderList.length; k++) {
-            if (priceOrderList[k].orderId == sellOrderId) {
-                priceOrderList[k].size += size;
-            }
-        }
-    }
+    // function backOrderSizeToOrder(MatchOrder memory _matchOrder) internal {
+    //     uint size = _matchOrder.size;
+    //     address sellOrderId = _matchOrder.SellOrderId;
+    //     address sellAddress = _matchOrder.SellAddress;
+    //     uint price = _matchOrder.price;
+    //     Order[] storage orderList = StorageAddressOrder[sellAddress];
+    //     for (uint i=0; i<orderList.length; i++) {
+    //         if (orderList[i].orderId == sellOrderId) {
+    //             orderList[i].size += size;
+    //         }
+    //     }
+    //     for (uint j=0; j<SellOrderList.length; j++) {
+    //         if (SellOrderList[j].orderId == sellOrderId) {
+    //             SellOrderList[j].size += size;
+    //         }
+    //     }
+    //     Order[] storage priceOrderList = mappingPriceSellOrderList[price];
+    //     for (uint k=0; k<priceOrderList.length; k++) {
+    //         if (priceOrderList[k].orderId == sellOrderId) {
+    //             priceOrderList[k].size += size;
+    //         }
+    //     }
+    // }
 
     function findOrderByOrderId(address owner, address _orderId) public view returns (Order memory, uint) {
         for (uint i=0; i<SellOrderList.length; i++) {
@@ -636,7 +638,7 @@ contract LambdaMatchOrder {
                         bool ret = findPeerIdListInSellOrderList(orderList[j].peerId, findOrderList);
                         if (!ret) {
                             findOrderList[index] = orderList[j];
-                            index++;
+                            index = index + 1;
                         }
                         if (index == count) {
                             return (findOrderList, findPrice);
@@ -646,7 +648,7 @@ contract LambdaMatchOrder {
             }
         }
         require(false, 'satisfy order is not enough');
-     }
+    }
 
     function findMatchOrderByOrderId (address _orderId) internal view returns (MatchOrder memory, uint) {
         for (uint i=0; i<MatchOrderList.length; i++) {
@@ -683,223 +685,76 @@ contract LambdaMatchOrder {
         order.settleTime = _time;
     }
 
-    function settle(address _orderId, uint _now) external {
-        (MatchOrder memory order, uint i) = findMatchOrderByOrderId(_orderId);
-        address sellOwner = order.SellAddress;
-        require(sellOwner != address(0), "invail sell address");
-        uint settleTime = _now;
-        uint div = settleTime - order.settleTime;
-        uint duration = order.endTime - order.createTime;
-        uint transferMoney = order.amount * (div / 1 days) / (duration / 1 days);
-        //        uint transferMoney = order.amount * (div / 60) / (duration / 1 days);
-        // require(price != 0, "time is not enough");
-        uint newSettleTime = settleTime - (div % 1 days);
-        //        uint newSettleTime = settleTime - (div % 60);
+    // function settle(address _orderId, uint _now) external {
+    //     (MatchOrder memory order, uint i) = findMatchOrderByOrderId(_orderId);
+    //     address sellOwner = order.SellAddress;
+    //     require(sellOwner != address(0), "invail sell address");
+    //     uint settleTime = _now;
+    //     uint div = settleTime - order.settleTime;
+    //     uint duration = order.endTime - order.createTime;
+    //     uint transferMoney = order.amount * (div / 1 days) / (duration / 1 days);
+    //     //        uint transferMoney = order.amount * (div / 60) / (duration / 1 days);
+    //     // require(price != 0, "time is not enough");
+    //     uint newSettleTime = settleTime - (div % 1 days);
+    //     //        uint newSettleTime = settleTime - (div % 60);
 
-        MatchOrderList[i].settleTime =  newSettleTime;
-        MatchOrderList[i].status = 1;
+    //     MatchOrderList[i].settleTime =  newSettleTime;
+    //     MatchOrderList[i].status = 1;
 
-        if (newSettleTime > order.endTime) {
-            // delete matchOrder
-            MatchOrderList[i].status = 2;
+    //     if (newSettleTime > order.endTime) {
+    //         // delete matchOrder
+    //         MatchOrderList[i].status = 2;
 
-            updateOwnerToMatchOrderList(order.SellAddress, order.orderId, order.endTime, 2);
+    //         updateOwnerToMatchOrderList(order.SellAddress, order.orderId, order.endTime, 2);
 
-            updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, order.endTime, 2);
+    //         updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, order.endTime, 2);
 
-            updateOrderIdToMatchOrderList(order.orderId, order.endTime, 2);
+    //         updateOrderIdToMatchOrderList(order.orderId, order.endTime, 2);
 
-            backOrderSizeToOrder(order);
+    //         backOrderSizeToOrder(order);
 
-        } else {
+    //     } else {
 
-            updateOwnerToMatchOrderList(order.SellAddress, order.orderId, newSettleTime, 1);
+    //         updateOwnerToMatchOrderList(order.SellAddress, order.orderId, newSettleTime, 1);
 
-            updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, newSettleTime, 1);
+    //         updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, newSettleTime, 1);
 
-            updateOrderIdToMatchOrderList(order.orderId, newSettleTime, 1);
+    //         updateOrderIdToMatchOrderList(order.orderId, newSettleTime, 1);
 
-            // send pdp reward
-            sellOwner.transfer(transferMoney);
+    //         // send pdp reward
+    //         sellOwner.transfer(transferMoney);
+    //     }
+    // }
+
+    function findPeerIdListInSellOrderList(uint peerId, Order[] memory orderList) internal returns (bool) {
+        for (uint i=0; i<orderList.length; i++) {
+            if (orderList[i].peerId == peerId) {
+                return true;
+            }
         }
+        return false;
     }
 
 
-    // get pledge miner list interface
-    function getPledgeMinerList(uint pageNum, uint showNum) external view returns (PledgeMiner[] memory) {
-        if (pageNum == 0 && showNum == 0) {
-            return PledgeMinerList;
-        }
-        uint start = (pageNum - 1) * showNum;
-        uint end = pageNum * showNum;
-        PledgeMiner[] memory result;
-        uint length = PledgeMinerList.length;
-        if (start > length) {
-            return result;
-        }
-        if (end > length) {
-            end = length;
-        }
-        result = new PledgeMiner[](end - start);
-        for (uint i=start; i<end; i++) {
-            result[i-start] = PledgeMinerList[i];
-        }
-        return result;
-    }
-
-    //flag 0 or 1
-    //0 sell
-    //1 buy
-    //2 all
-    function getOrderListByAddress(address _address, uint pageNum, uint showNum, uint flag) external view returns (Order[] memory) {
-        Order[] memory orderListAll = StorageAddressOrder[_address];
-        Order[] memory orderList = filterOrderListByFlag(orderListAll, flag);
-        if (pageNum == 0 && showNum == 0) {
-            return orderList;
-        }
-
-        uint start = (pageNum - 1) * showNum;
-        uint end = pageNum * showNum;
-        Order[] memory result;
-        uint length = orderList.length;
-        if (start > length) {
-            return result;
-        }
-        if (end > length) {
-            end = length;
-        }
-        result = new Order[](end - start);
-        for (uint i=start; i<end; i++) {
-            result[i-start] = orderList[i];
-        }
-        return result;
-    }
-
-    function filterOrderListByFlag(Order[] memory list, uint flag) internal returns (Order[] memory) {
-        if (flag == 2) {
-            return list;
-        }
-        uint buyOrderNum = 0;
-        uint sellOrderNum = 0;
-        Order[] memory result;
-        for (uint i=0; i<list.length; i++) {
-            if (list[i].mold == 1) {
-                buyOrderNum += 1;
-            }
-            if (list[i].mold == 0) {
-                sellOrderNum += 1;
+    // libs
+    function quickSort(uint[] storage arr, int left, int right) internal{
+        int i = left;
+        int j = right;
+        if(i==j) return;
+        uint pivot = arr[uint(left + (right - left) / 2)];
+        while (i <= j) {
+            while (arr[uint(i)] < pivot) i++;
+            while (pivot < arr[uint(j)]) j--;
+            if (i <= j) {
+                (arr[uint(i)], arr[uint(j)]) = (arr[uint(j)], arr[uint(i)]);
+                i++;
+                j--;
             }
         }
-        if (flag == 1) {
-            result = new Order[](buyOrderNum);
-            uint buyCount = 0;
-            for (uint j=0; j<list.length; j++) {
-                if (list[j].mold == 1) {
-                    result[buyCount] = list[j];
-                    buyCount += 1;
-                }
-            }
-        } else {
-            uint sellCount = 0;
-            result = new Order[](sellOrderNum);
-            for (uint k=0; k<list.length; k++) {
-                if (list[j].mold == 0) {
-                    result[sellCount] = list[k];
-                    sellCount += 1;
-                }
-            }
-        }
-        return result;
-    }
-
-    function filterMatchOrderListByFlag(MatchOrder[] memory list, address _address, uint flag) internal returns (MatchOrder[] memory) {
-        if (flag == 2) {
-            return list;
-        }
-        uint buyOrderNum = 0;
-        uint sellOrderNum = 0;
-        MatchOrder[] memory result;
-        for (uint i=0; i<list.length; i++) {
-            if (list[i].BuyAddress == _address) {
-                buyOrderNum += 1;
-            }
-            if (list[i].SellAddress == _address) {
-                sellOrderNum += 1;
-            }
-        }
-
-        if (flag == 0) {
-            result = new MatchOrder[](buyOrderNum);
-            uint buyCount = 0;
-            for (uint j=0; j<list.length; j++) {
-                if (list[j].BuyAddress == _address) {
-                    result[buyCount] = list[j];
-                    buyCount += 1;
-                }
-            }
-        } else {
-            uint sellCount = 0;
-            result = new MatchOrder[](sellOrderNum);
-            for (uint k=0; k<list.length; k++) {
-                if (list[j].SellAddress == _address) {
-                    result[sellCount] = list[k];
-                    sellCount += 1;
-                }
-            }
-        }
-        return result;
-    }
-
-    // flag 0 or 1    0 mean buy
-    function getMatchOrderListByAddress(address _address, uint pageNum, uint showNum, uint flag) external returns (MatchOrder[] memory) {
-        MatchOrder[] memory matchOrderList = mappingAddressToMatchOrder[_address];
-
-        MatchOrder [] memory filterMatchOrderList = filterMatchOrderListByFlag(matchOrderList, _address, flag);
-
-        if (pageNum == 0 && showNum == 0) {
-            return filterMatchOrderList;
-        }
-
-        uint start = (pageNum - 1) * showNum;
-        uint end = pageNum * showNum;
-        MatchOrder[] memory result;
-        uint length = filterMatchOrderList.length;
-        if (start > length) {
-            return result;
-        }
-        if (end > length) {
-            end = length;
-        }
-        result = new MatchOrder[](end - start);
-        for (uint index=start; index<end; index++) {
-            result[index-start] = filterMatchOrderList[index];
-        }
-        return result;
-    }
-
-    function getMappingPriceSellOrderList(uint x) external view returns (Order[] memory) {
-        return mappingPriceSellOrderList[x];
-    }
-
-    function getSellOrderList(uint pageNum, uint showNum) external view returns (Order[] memory) {
-        if (pageNum == 0 && showNum == 0) {
-            return SellOrderList;
-        }
-        uint start = (pageNum - 1) * showNum;
-        uint end = pageNum * showNum;
-        Order[] memory result;
-        uint length = SellOrderList.length;
-        if (start > length) {
-            return result;
-        }
-        if (end > length) {
-            end = length;
-        }
-        result = new Order[](end - start);
-        for (uint i=start; i<end; i++) {
-            result[i-start] = SellOrderList[i];
-        }
-        return result;
+        if (left < j)
+            quickSort(arr, left, j);
+        if (i < right)
+            quickSort(arr, i, right);
     }
 
     function getMatchOrderList(uint pageNum, uint showNum) external view returns (MatchOrder[] memory) {
@@ -921,132 +776,6 @@ contract LambdaMatchOrder {
             result[i-start] = MatchOrderList[i];
         }
         return result;
-    }
-
-    function getMatchOrderByOrderId(address _orderId) external view returns (MatchOrder[] memory) {
-        MatchOrder[] memory ret = new MatchOrder[](1);
-        ret[0] = mappingOrderIdToMatchOrder[_orderId];
-        return ret;
-    }
-
-    function getPriceList() external view returns (uint[]) {
-        return priceList;
-    }
-
-    function getPriceSellOrderList(uint _price, uint _size, uint _duration, address _callAddress) external view returns (Order[] memory) {
-        Order[] memory findOrderList;
-        for (uint i=0; i<priceList.length; i++) {
-            if (priceList[i] <= _price) {
-                uint findPrice = priceList[i];
-                Order[] memory orderList = mappingPriceSellOrderList[findPrice];
-                uint index = 0;
-                for (uint j=0; j<orderList.length; j++) {
-                    if (_size <= orderList[j].size && _duration <= orderList[j].duration && orderList[j].owner != _callAddress) {
-                        findOrderList[index] = orderList[j];
-                        index++;
-                    }
-                }
-            }
-        }
-        return findOrderList;
-    }
-
-    function findPeerIdListInSellOrderList(uint peerId, Order[] memory orderList) internal returns (bool) {
-        for (uint i=0; i<orderList.length; i++) {
-            if (orderList[i].peerId == peerId) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // flag 0 or 1   0 mean all
-    function getMatchOrderListByBuyOrderId(address _orderId, uint flag) external view returns (MatchOrder[] memory) {
-        MatchOrder[] memory result;
-        uint length = MatchOrderList.length;
-        uint index = 0;
-        for(uint i=0; i<length; i++) {
-            if (MatchOrderList[i].BuyOrderId == _orderId) {
-                if (flag == 1 && MatchOrderList[i].status == 1) {
-                    index++;
-                } else {
-                    index++;
-                }
-            }
-        }
-        result = new MatchOrder[](index);
-        uint pos = 0;
-        for(uint j=0; j<length; j++) {
-            if (MatchOrderList[j].BuyOrderId == _orderId) {
-                if (flag == 1 && MatchOrderList[j].status == 1) {
-                    result[pos] = MatchOrderList[j];
-                    pos++;
-                } else {
-                    result[pos] = MatchOrderList[j];
-                    pos++;
-                }
-            }
-        }
-        return result;
-    }
-
-    function findValidatorByPledgeAddress(address _pledgeAddress) external view returns (Validator[]) {
-        address pledgeAddress = _pledgeAddress;
-        address validatorAddress = mappingPledgeAddressToValidatorAddress[pledgeAddress];
-        if (validatorAddress == 0) {
-            require(false, "can not find validator");
-        }
-        uint length = ValidatorList.length;
-        Validator[] memory list = new Validator[](1);
-        for (uint i=0; i<length; i++) {
-            if (ValidatorList[i].validatorAddress == validatorAddress) {
-                Validator v = ValidatorList[i];
-                list[0] = v;
-                return list;
-            }
-        }
-        require(false, "can not find validator");
-    }
-
-    function getValidatorPledgeListByValidatorAddress(address _validatorAddress) external view returns (PledgeMiner[]) {
-        address[] storage pledgeAddressList =  mappingValidatorToPledgeAddress[_validatorAddress];
-        uint length = pledgeAddressList.length;
-        PledgeMiner[] memory list = new PledgeMiner[](length);
-        for (uint i=0; i<length; i++) {
-            PledgeMiner memory p = findPledgeFromList(pledgeAddressList[i]);
-            list[i] = p;
-        }
-        return list;
-    }
-
-    function findPledgeFromList(address _pledgeAddress) internal view returns (PledgeMiner) {
-        uint length = PledgeMinerList.length;
-        for (uint i=0; i<length; i++) {
-            if (PledgeMinerList[i].owner == _pledgeAddress) {
-                return PledgeMinerList[i];
-            }
-        }
-    }
-
-    // libs
-    function quickSort(uint[] storage arr, int left, int right) internal{
-        int i = left;
-        int j = right;
-        if(i==j) return;
-        uint pivot = arr[uint(left + (right - left) / 2)];
-        while (i <= j) {
-            while (arr[uint(i)] < pivot) i++;
-            while (pivot < arr[uint(j)]) j--;
-            if (i <= j) {
-                (arr[uint(i)], arr[uint(j)]) = (arr[uint(j)], arr[uint(i)]);
-                i++;
-                j--;
-            }
-        }
-        if (left < j)
-            quickSort(arr, left, j);
-        if (i < right)
-            quickSort(arr, i, right);
     }
 
 }
