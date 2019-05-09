@@ -351,6 +351,58 @@ contract LambdaMatchOrder {
     //     minerAddress.transfer(miner.money);
     // }
 
+    function createOrderBySellOrderId(uint _size, uint _duration, uint _now, address _address, address _sellOrderId) public payable {
+        Order[] memory orderList = findOrderBySellOrderId(_sellOrderId, _size, _duration, _address);
+        Order memory sellOrder = orderList[0];
+        uint _price = sellOrder.price;
+        // create OrderId
+        bytes32 orderId = keccak256(abi.encodePacked(
+                _address,
+                _now,
+                _size,
+                _price,
+                _duration
+            ));
+        // create Order
+        Order memory order = Order({
+            orderId: address(orderId),
+            owner: _address,
+            price: _price,
+            size: _size,
+            mold: 1,
+            createTime: _now,
+            duration: _duration * 1 days,
+            peerId: 0,
+            sellSize: 0
+        });
+
+        executeOrderP2P(order, _now, msg.value, _sellOrderId);
+    }
+
+    function executeOrderP2P(Order memory _order, uint _now, uint _money, address _sellOrderId) public payable {
+        address owner = _order.owner;
+        uint price = _order.price;
+        uint size = _order.size;
+        uint duration = _order.duration;
+        Order[] memory orderList = findOrderBySellOrderId(_sellOrderId, size, duration, _order.owner);
+        systemOrder(_order, orderList, _now, _money);
+    }
+
+    function findOrderBySellOrderId(address _sellAddress, uint _size, uint _duration, address _buyAddress) internal returns (Order[] memory) {
+        Order[] memory findOrderList = new Order[](1);
+        uint length = SellOrderList.length;
+        for (uint i=0; i<length; i++) {
+            if (SellOrderList[i].owner == _buyAddress) {
+                require(false, "buyAddress and sellAddress can not be the same");
+            }
+            if (SellOrderList[i].orderId == _sellAddress && SellOrderList[i].size >= _size && SellOrderList[i].duration >= _duration) {
+                findOrderList[0] = SellOrderList[i];
+                return findOrderList;
+            }
+        }
+        require(false, "can not find order by orderId or orderId can not match");
+    }
+
     function createOrder(uint _size, uint _price, uint _duration, uint _mold, uint256 _peerId, uint _now, address _address, uint matchCount) public payable {
         // if mold == 0  sell
         uint index = PledgeIndex[_address];
@@ -480,7 +532,7 @@ contract LambdaMatchOrder {
             endTime: _now + buyOrder.duration,
             settleTime: _now,
             amount: buyMoney
-            });
+        });
         return (matchOrder, orderId);
     }
 
@@ -1026,6 +1078,17 @@ contract LambdaMatchOrder {
                 return PledgeMinerList[i];
             }
         }
+    }
+
+    function findSellOrderByOrderId(address _orderId) external view returns (Order[] memory) {
+        Order[] memory findOrder = new Order[](1);
+        for (uint i=0; i<SellOrderList.length; i++) {
+            if (SellOrderList[i].orderId == _orderId) {
+                findOrder[0] = SellOrderList[i];
+                return findOrder;
+            }
+        }
+        require(false, "can not find Order");
     }
 
     // libs
