@@ -392,10 +392,10 @@ contract LambdaMatchOrder {
         Order[] memory findOrderList = new Order[](1);
         uint length = SellOrderList.length;
         for (uint i=0; i<length; i++) {
-            if (SellOrderList[i].owner == _buyAddress) {
-                require(false, "buyAddress and sellAddress can not be the same");
-            }
             if (SellOrderList[i].orderId == _sellAddress && SellOrderList[i].size >= _size && SellOrderList[i].duration >= _duration) {
+                if (SellOrderList[i].owner == _buyAddress) {
+                    require(false, "buyAddress and sellAddress can not be the same");
+                }
                 findOrderList[0] = SellOrderList[i];
                 return findOrderList;
             }
@@ -697,7 +697,7 @@ contract LambdaMatchOrder {
                 }
             }
         }
-        require(false, 'satisfy order is not enough');
+        require(false, 'satisfied order is not enough');
      }
 
     function findMatchOrderByOrderId (address _orderId) internal view returns (MatchOrder memory, uint) {
@@ -855,7 +855,7 @@ contract LambdaMatchOrder {
             uint sellCount = 0;
             result = new Order[](sellOrderNum);
             for (uint k=0; k<list.length; k++) {
-                if (list[j].mold == 0) {
+                if (list[k].mold == 0) {
                     result[sellCount] = list[k];
                     sellCount += 1;
                 }
