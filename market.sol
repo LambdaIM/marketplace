@@ -893,7 +893,7 @@ contract LambdaMatchOrder {
             uint sellCount = 0;
             result = new MatchOrder[](sellOrderNum);
             for (uint k=0; k<list.length; k++) {
-                if (list[j].SellAddress == _address) {
+                if (list[k].SellAddress == _address) {
                     result[sellCount] = list[k];
                     sellCount += 1;
                 }
