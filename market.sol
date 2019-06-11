@@ -287,7 +287,7 @@ contract LambdaMatchOrder {
             }
         }
         delete StorageAddressOrder[_address];
-        handlerMinerMatchOrder(_address);
+//        handlerMinerMatchOrder(_address);
     }
 
     function removeOrder(Order[] storage orderList, uint index) internal {
@@ -327,7 +327,7 @@ contract LambdaMatchOrder {
                     }
                 }
                 MatchOrder[] storage matchSellOrderList = mappingAddressToMatchOrder[_address];
-                for (uint k=0; j<matchSellOrderList.length; k++) {
+                for (uint k=0; k<matchSellOrderList.length; k++) {
                     if (matchSellOrderList[k].status == 1) {
                         matchSellOrderList[k].status = 3;
                     }
@@ -643,28 +643,12 @@ contract LambdaMatchOrder {
         miner.useSize -= size;
     }
 
-    function backOrderSizeToOrder(MatchOrder memory _matchOrder) internal {
+    function backOrderSizeToPledge(MatchOrder memory _matchOrder) internal {
         uint size = _matchOrder.size;
-        address sellOrderId = _matchOrder.SellOrderId;
         address sellAddress = _matchOrder.SellAddress;
-        uint price = _matchOrder.price;
-        Order[] storage orderList = StorageAddressOrder[sellAddress];
-        for (uint i=0; i<orderList.length; i++) {
-            if (orderList[i].orderId == sellOrderId) {
-                orderList[i].size += size;
-            }
-        }
-        for (uint j=0; j<SellOrderList.length; j++) {
-            if (SellOrderList[j].orderId == sellOrderId) {
-                SellOrderList[j].size += size;
-            }
-        }
-        Order[] storage priceOrderList = mappingPriceSellOrderList[price];
-        for (uint k=0; k<priceOrderList.length; k++) {
-            if (priceOrderList[k].orderId == sellOrderId) {
-                priceOrderList[k].size += size;
-            }
-        }
+
+        uint index = PledgeIndex[sellAddress];
+        PledgeMinerList[index].useSize -= size;
     }
 
     function findOrderByOrderId(address owner, address _orderId) public view returns (Order memory, uint) {
@@ -736,41 +720,21 @@ contract LambdaMatchOrder {
     }
 
     function settle(address _orderId, uint _now) external {
-        (MatchOrder memory order, uint i) = findMatchOrderByOrderId(_orderId);
+        MatchOrder memory order = mappingOrderIdToMatchOrder(_orderId);
         address sellOwner = order.SellAddress;
         require(sellOwner != address(0), "invail sell address");
         uint settleTime = _now;
         uint div = settleTime - order.settleTime;
         uint duration = order.endTime - order.createTime;
         uint transferMoney = order.amount * (div / 1 days) / (duration / 1 days);
-        //        uint transferMoney = order.amount * (div / 60) / (duration / 1 days);
-        // require(price != 0, "time is not enough");
-        uint newSettleTime = settleTime - (div % 1 days);
-        //        uint newSettleTime = settleTime - (div % 60);
 
-        MatchOrderList[i].settleTime =  newSettleTime;
-        MatchOrderList[i].status = 1;
+        uint newSettleTime = settleTime - (div % 1 days);
 
         if (newSettleTime > order.endTime) {
-            // delete matchOrder
-            MatchOrderList[i].status = 2;
 
-            updateOwnerToMatchOrderList(order.SellAddress, order.orderId, order.endTime, 2);
-
-            updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, order.endTime, 2);
-
-            updateOrderIdToMatchOrderList(order.orderId, order.endTime, 2);
-
-            backOrderSizeToOrder(order);
+            backOrderSizeToPledge(order);
 
         } else {
-
-            updateOwnerToMatchOrderList(order.SellAddress, order.orderId, newSettleTime, 1);
-
-            updateOwnerToMatchOrderList(order.BuyAddress, order.orderId, newSettleTime, 1);
-
-            updateOrderIdToMatchOrderList(order.orderId, newSettleTime, 1);
-
             // send pdp reward
             sellOwner.transfer(transferMoney);
         }
