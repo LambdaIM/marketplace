@@ -16,6 +16,14 @@ contract LambdaMatchOrder {
 
     }
 
+    function validatorPledge() external payable {
+
+    }
+
+    function validatorRevert(uint money) external payable {
+        msg.sender.transfer(money);
+    }
+
     function pledge(address mAddress, uint pledgeSize) external payable {
         StorageDetail storage detail = mappingAddressForStorageDetail[mAddress];
         detail.PledgeTotalSize += pledgeSize;
